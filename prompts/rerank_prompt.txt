@@ -1,0 +1,13 @@
+You will be given a document and a query phrase. The query phrase represents the target contextual meaning. Your task is to identify which candidate occurrence in the document expresses the same meaning.
+The document contains one or more marked locations, each wrapped in tags such as [LOC-1]...[/LOC-1], where a candidate occurrence was found. Each candidate is listed separately below with its exact text and location.
+Different candidates may contain identical or very similar text. Base your decision on the surrounding context and intended meaning rather than the text alone. Candidate letters are assigned randomly and have no meaning. Exactly one candidate best matches the meaning of the query phrase.
+Document:
+{marked_document}
+Query phrase:
+"{query}"
+Candidates:
+{candidate_list}
+Task:
+Choose the candidate whose contextual meaning would be interpreted by a human reader as expressing the same sense as the query phrase.
+Output exactly one capital letter corresponding to your chosen candidate (for example, A). Do not include any explanation, punctuation, span text, location information, or any other text.
+Answer:

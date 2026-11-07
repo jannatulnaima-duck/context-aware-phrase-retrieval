@@ -1,0 +1,3 @@
+datasets>=2.14.0
+# the retrieval_qa training scripts need their own packages (transformers,
+# torch, evaluate, ...), add them here when you drop that folder in
