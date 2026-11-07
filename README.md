@@ -185,8 +185,8 @@ Our PSD results on the full test set:
 
 | | EM | F1 |
 |---|---|---|
-| Text-only (location-blind) | 96.33 | 97.14 |
-| **Location-aware** | **85.32** | **85.42** |
+| Text-only (location-blind) | 95.50 | 96.34 |
+| **Location-aware** | **84.80** | **84.97** |
 
 Of the 4,858 test questions, 291 are down to a single candidate after Step 2 and are answered automatically. Gemini gave a usable answer for 4,533 of the other 4,567, so the remaining 34 are left out of the scores (they are listed under `unscored_qids` in the output file). The PR results are in the paper.
 
