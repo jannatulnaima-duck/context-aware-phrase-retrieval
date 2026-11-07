@@ -25,7 +25,7 @@ This repo has the code for our three-stage framework:
 
 1. **Candidate generation.** ELECTRA, RoBERTa and Longformer are fine-tuned as extractive QA models and we keep the top 5 spans of each, not just the best one.
 2. **Location-aware candidate aggregation.** The spans from all models are pooled, junk is filtered out, and spans that overlap in the document are merged into one candidate per occurrence.
-3. **LLM-based contextual reranking.** If more than one occurrence is left, Gemini 2.5 Flash reads the document with every candidate marked as `[LOC-i]` and picks the one whose meaning matches the query. Questions with a single candidate left never reach the LLM.
+3. **LLM-based contextual reranking.** If more than one occurrence is left, Gemini 3.5 Flash reads the document with every candidate marked as `[LOC-i]` and picks the one whose meaning matches the query. Questions with a single candidate left never reach the LLM.
 
 Because the same phrase can sit in several places with different meanings, we score with a location-aware EM/F1 (`em_with_index`, `f1_with_index`) next to the usual text-only version. A prediction only counts if it is at the gold position. Look at the location-aware numbers when comparing systems, the text-only ones are there for reference.
 
