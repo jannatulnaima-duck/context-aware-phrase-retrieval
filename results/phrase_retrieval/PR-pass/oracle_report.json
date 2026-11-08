@@ -1,0 +1,17 @@
+{
+  "total_entries": 5000,
+  "entries_needing_disambiguation_after_dedupe": 1160,
+  "entries_single_occurrence_after_dedupe": 3840,
+  "oracle_recall_overall": 0.9822,
+  "oracle_recall_on_ambiguous_subset": 0.9560344827586207,
+  "random_baseline_accuracy_on_ambiguous_subset": 0.442532840722494,
+  "cluster_count_distribution_after_dedupe": {
+    "1": 3840,
+    "2": 819,
+    "3": 247,
+    "4": 62,
+    "5": 23,
+    "6": 5,
+    "7": 4
+  }
+}

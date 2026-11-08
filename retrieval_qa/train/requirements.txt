@@ -1,0 +1,8 @@
+# QA fine-tuning (retrieval_qa/train/). Needs a GPU.
+torch
+transformers>=4.34,<5
+datasets>=2.14.0,<3
+accelerate
+evaluate
+numpy
+tqdm

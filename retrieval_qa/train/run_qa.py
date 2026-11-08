@@ -53,11 +53,16 @@ import re
 
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.19.0")
+check_min_version("4.34.0")
 
-require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/question-answering/requirements.txt")
+require_version("datasets>=2.14.0", "To fix: pip install -r retrieval_qa/train/requirements.txt")
 
 logger = logging.getLogger(__name__)
+
+# transformers >= 4.46 calls the Trainer argument `processing_class` (and v5 dropped `tokenizer`)
+import inspect
+from transformers import Trainer as _HFTrainer
+_TOKENIZER_KWARG = "processing_class" if "processing_class" in inspect.signature(_HFTrainer.__init__).parameters else "tokenizer"
 
 
 @dataclass
@@ -184,13 +189,13 @@ def main():
                 data_args.dataset_name,
                 data_args.dataset_config_name,
                 cache_dir=model_args.cache_dir,
-                use_auth_token=True if model_args.use_auth_token else None,
+                token=True if model_args.use_auth_token else None,
             )
         else:
             raw_datasets = load_dataset(
                 data_args.dataset_name,
                 cache_dir=model_args.cache_dir,
-                use_auth_token=True if model_args.use_auth_token else None,
+                token=True if model_args.use_auth_token else None,
             )
     else:
         data_files = {}
@@ -209,7 +214,7 @@ def main():
             data_files=data_files,
             field="data",
             cache_dir=model_args.cache_dir,
-            use_auth_token=True if model_args.use_auth_token else None,
+            token=True if model_args.use_auth_token else None,
         )
     if "question" in raw_datasets[list(raw_datasets.keys())[0]].column_names:
        raw_datasets = raw_datasets.rename_column("question", "query")
@@ -226,14 +231,14 @@ def main():
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
+        token=True if model_args.use_auth_token else None,
     )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
         use_fast=True,
         revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
+        token=True if model_args.use_auth_token else None,
     )
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model_name_or_path,
@@ -241,7 +246,7 @@ def main():
         config=config,
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
+        token=True if model_args.use_auth_token else None,
     )
 
     # Tokenizer check: this script requires a fast tokenizer.
@@ -612,7 +617,7 @@ def main():
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
         eval_examples=eval_examples if training_args.do_eval else None,
-        tokenizer=tokenizer,
+        **{_TOKENIZER_KWARG: tokenizer},
         data_collator=data_collator,
         post_process_function=post_processing_function,
         compute_metrics=compute_metrics,

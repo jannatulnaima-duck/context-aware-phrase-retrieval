@@ -1,3 +1,4 @@
+# Pipeline only (pipeline/01-04). Runs on CPU, no GPU or QA packages needed.
+# NOTE: the pipeline loads the PiC test sets with load_dataset(). If a dataset
+# fails to load on your version, try datasets<4 (dataset-script loading was removed in 4.0).
 datasets>=2.14.0
-# the retrieval_qa training scripts need their own packages (transformers,
-# torch, evaluate, ...), add them here when you drop that folder in

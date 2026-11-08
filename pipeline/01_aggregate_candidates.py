@@ -14,7 +14,7 @@ from utils import add_task_args, load_test_split, task_dir
 TOP_K = 5
 MAX_WORDS = 6
 
-# file names are whatever eval.sh produced, we just renamed them per model
+# file names that retrieval_qa/train/run_model.sh writes into results/<task>/qa/
 NBEST_FILES = {
     "electra": "ELECTRApredict_nbest_predictions.json",
     "roberta": "ROBERTApredict_nbest_predictions.json",
@@ -54,7 +54,7 @@ def pool_candidates(nbests):
         qids.update(nbest.keys())
 
     pooled = {}
-    for qid in qids:
+    for qid in sorted(qids):
         seen = defaultdict(lambda: {"models": [], "probs": []})
         for model, nbest in nbests.items():
             used = set()

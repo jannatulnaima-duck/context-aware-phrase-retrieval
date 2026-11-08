@@ -36,10 +36,12 @@ def token_f1(gold, pred):
     return 2 * precision * recall / (precision + recall)
 
 
-def read_letter(response):
-    # the prompt asks for a single letter. Once in a while the model starts
-    # reasoning out loud anyway, so we accept an explicit \boxed{X} or "Answer: X"
-    # at the end and leave the question unscored if there is neither
+def read_letter(response, valid_letters):
+    # The prompt asks for a single letter. Once in a while the model reasons out loud
+    # anyway, so we are a bit forgiving: a lone letter or an explicit \boxed{X} is taken
+    # as it is, otherwise we take the last standalone capital letter in the text that is one
+    # of this question's candidate letters ("... I will choose A."). If there is none,
+    # the question is left unscored.
     try:
         text = response["candidates"][0]["content"]["parts"][0]["text"].strip()
     except (KeyError, IndexError, TypeError):
@@ -49,8 +51,8 @@ def read_letter(response):
     boxed = re.search(r"\\boxed\{([A-Za-z])\}", text)
     if boxed:
         return boxed.group(1).upper()
-    m = re.search(r"answer\W{0,5}([A-Z])\b", text, flags=re.IGNORECASE)
-    return m.group(1).upper() if m else None
+    letters = [m for m in re.findall(r"\b([A-Z])\b", text) if m in valid_letters]
+    return letters[-1] if letters else None
 
 
 def load_llm_picks(out_dir):
@@ -64,7 +66,7 @@ def load_llm_picks(out_dir):
                 if row.get("status"):
                     continue
                 meta = json.loads(row["metadata"])
-                letter = read_letter(row.get("response", {}))
+                letter = read_letter(row.get("response", {}), meta["label_lookup"])
                 if letter in meta["label_lookup"]:
                     chosen = meta["label_lookup"][letter]
                     picks[meta["id"]] = (chosen["text"], chosen["offsets"][0])
