@@ -6,7 +6,7 @@
 <div align="center">
   <h1 align="center">Context-Aware Phrase Retrieval for Occurrence-Level Disambiguation</h1>
   <p align="center">
-    Department of Computer Science and Engineering, University of Chittagong, and Shahjalal University of Science and Technology, Bangladesh
+    Department of Computer Science and Engineering, East Delta University and University of Chittagong, Bangladesh
   </p>
 
   [Jannatul Naima](mailto:jannatulnaima.cse.cu@gmail.com), Trina Chakraborty, and Tasmia Nuzhat Nova.
