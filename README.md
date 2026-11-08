@@ -13,9 +13,11 @@ Table of Contents
 3. [Reproduce results for benchmark](#reproduce-results-for-benchmark)
    - [1. PR: Phrase Retrieval](#1-pr-phrase-retrieval)
    - [2. PSD: Phrase Sense Disambiguation](#2-psd-phrase-sense-disambiguation)
-4. [License](#license)
-5. [Contact](#contact)
-6. [References](#references)
+4. [What is in `results/`](#what-is-in-results)
+5. [License](#license)
+6. [Contact](#contact)
+7. [Acknowledgements](#acknowledgements)
+8. [References](#references)
 
 ## About The Project
 
@@ -55,90 +57,79 @@ and the PiC benchmark this builds on:
 
 ### Prerequisites
 
-- Anaconda 4.10 or higher
-- Python 3.9 or higher
+- Python 3.9 or higher (Anaconda is optional)
 - pip version 21 or higher
-- All experiments (model training and the pipeline scripts) were run on [Lightning AI](https://lightning.ai/).
+- Steps 2 to 4 (the `pipeline/` scripts) run on CPU. Step 1 (fine-tuning the QA models) needs a GPU, we ran it on [Lightning AI](https://lightning.ai/).
+- Step 3 needs access to the Gemini API (we used Vertex AI batch prediction).
 
 ### Installation
 
-1. Create a new folder and clone the repo
-
+1. Clone the repo
+   
    ```
-   mkdir phrase-retrieval && cd "$_"
-   git clone <this-repo-url> && cd <repo-folder>
+   git clone https://github.com/jannatulnaima-duck/context-aware-phrase-retrieval.git
+   cd context-aware-phrase-retrieval
    ```
-2. Create and activate a Conda environment (or change environment config if you are running on lightning ai)
-
+2. Create and activate an environment
+   
    ```
    conda create -n occ_retrieval python=3.9
    conda activate occ_retrieval
    ```
-3. Install required libraries
-
+3. Install the libraries. The pipeline (Steps 2 to 4) only needs `datasets`. Step 1 needs the extra packages in `retrieval_qa/train/requirements.txt`.
+   
    ```
-   pip install -r requirements.txt
+   pip install -r requirements.txt                   # pipeline
+   pip install -r retrieval_qa/train/requirements.txt  # only if you want to retrain the QA models
    ```
 
 ## Reproduce results for benchmark
 
-`retrieval_qa/` has the QA training and evaluation scripts, `pipeline/` has the aggregation, reranking and scoring scripts, and everything the scripts produce goes under `results/`:
+`retrieval_qa/train/` has the QA training and evaluation code, `pipeline/` has the aggregation, reranking and scoring scripts, and everything the scripts produce goes under `results/`:
 
 ```
-retrieval_qa/                         # fine-tune and evaluate the QA models
+retrieval_qa/train/                   # fine-tune and evaluate the QA models (run_model.sh)
 pipeline/                             # aggregation, dedupe, LLM batch, scoring
 prompts/rerank_prompt.txt             # the exact prompt we send to Gemini
 results/phrase_retrieval/PR-pass/     # PR outputs  (or PR-page)
 results/phrase_sense_disambiguation/  # PSD outputs
 ```
 
+Datasets: PR is loaded from `PiC/phrase_retrieval` (public PiC release). PSD is loaded from `Deehan1866/phrase_sense_disambiguation`, the copy of PiC-PSD we trained on. To use a different copy, pass `--hf_dataset your/dataset` to the pipeline scripts.
+
+**Only want to check our numbers?** The `results/` folder contains the QA n-best files and the Gemini answers, so you can skip Steps 1 and 3 and run Steps 2 and 4 directly (see [What is in `results/`](#what-is-in-results)).
+
 ### 1. PR: Phrase Retrieval
 
 #### Step 1: Candidate generation with the QA models
 
-Change directory to the `retrieval_qa` folder
+`run_model.sh` fine-tunes one model on PR-pass (or PR-page), evaluates it, predicts on the test set and copies the n-best file to the place and name that Step 2 expects.
 
 ```
-cd retrieval_qa/
+cd retrieval_qa/train/
+
+bash run_model.sh phrase_retrieval PR-pass Longformer
+bash run_model.sh phrase_retrieval PR-pass ELECTRA
+bash run_model.sh phrase_retrieval PR-pass ROBERTA
 ```
 
-We fine-tune each model on PR-pass (or PR-page) and then run it on the test set:
-
-```
-export DATASET="phrase_retrieval"
-export DATASET_CONFIG="PR-pass"
-export MODEL="Longformer-base"
-
-bash train_qa.sh finetune_model "${DATASET}" "${DATASET_CONFIG}" "${MODEL}"
-bash eval_qa.sh evaluate_model "${DATASET}" "${DATASET_CONFIG}" "${MODEL}"
-```
-
-- `DATASET_CONFIG` can be exported to the followings: `PR-pass` or `PR-page`
-- `MODEL` can be exported to the followings: `Longformer-base`, `ELECTRA-base` and `RoBERTa-base`. Run the two commands once per model.
-- Evaluation writes an n-best file, `predict_nbest_predictions.json`, for each model. Copy the three of them to `results/phrase_retrieval/${DATASET_CONFIG}/qa/` and give them these names, because the next step looks for exactly these:
-
-  ```
-  Longformerpredict_nbest_predictions.json
-  ELECTRApredict_nbest_predictions.json
-  ROBERTApredict_nbest_predictions.json
-  ```
+- The second argument can be `PR-pass` or `PR-page`.
+- The third argument can be `Longformer` (`allenai/longformer-base-4096`), `ELECTRA` (`google/electra-large-discriminator`) or `ROBERTA` (`roberta-large`). Run the command once per model.
+- Training settings: per-device batch size 2 with 8 gradient accumulation steps, fp16, max sequence length 512, doc stride 128, seed 42.
+- The n-best files are written to `results/phrase_retrieval/<config>/qa/` as `Longformerpredict_nbest_predictions.json`, `ELECTRApredict_nbest_predictions.json` and `ROBERTApredict_nbest_predictions.json`. Training outputs and checkpoints go to `results/.../qa/runs/<model>/` (not committed).
 
 #### Step 2: Aggregate and deduplicate the candidates
 
-Change directory to the `pipeline` folder
+Change directory to the `pipeline` folder. Run all pipeline scripts from there, the default `--results_root` is `../results`.
 
 ```
-cd ../pipeline/
-```
-
-```
+cd ../../pipeline/
 python 01_aggregate_candidates.py --task pr --config PR-pass
 python 02_dedupe_clusters.py --task pr --config PR-pass
 ```
 
 - The first script pools the top 5 spans of the three models, drops spans longer than 6 words or spanning a sentence boundary, and removes exact duplicates.
 - The second script merges overlapping spans into one cluster and keeps the most confident span of each (`avg_prob`). It also saves `oracle_report.json`, which has the oracle recall and the random-choice baseline that we report in the paper.
-- The PR dataset is loaded from `PiC/phrase_retrieval`. If you use a different copy, pass `--hf_dataset your/dataset`.
 
 #### Step 3: LLM reranking
 
@@ -146,7 +137,7 @@ python 02_dedupe_clusters.py --task pr --config PR-pass
 python 03_build_llm_batch.py --task pr --config PR-pass
 ```
 
-This writes `pr_llm_batch.jsonl` into the results folder, with one request for every question that still has more than one candidate after Step 2. We sent this file as a Gemini 2.5 Flash batch job on Vertex AI (the generation settings are in the script). When the job is done, download its output and put it in the same results folder. The scoring script picks up every file that ends with `_predictions.jsonl`.
+This writes `pr_llm_batch.jsonl` into the results folder, with one request for every question that still has more than one candidate after Step 2. We sent this file as a Gemini 3.5 Flash batch job on Vertex AI (the generation settings are in the script, the prompt is in `prompts/rerank_prompt.txt`). When the job is done, download its output and put it in the same results folder. The scoring script picks up every file that ends with `_predictions.jsonl`, so name the output file for example `gemini_predictions.jsonl` (if Vertex AI split it into several files, keep the `_predictions.jsonl` ending on each part).
 
 #### Step 4: Scoring
 
@@ -156,39 +147,75 @@ python 04_score_predictions.py --task pr --config PR-pass
 
 - Questions that had a single candidate left after Step 2 are answered with that candidate (`auto`), the others use the letter Gemini picked (`llm`).
 - The scores and the per-question predictions are saved to `final_predictionspr.json` in the results folder.
+- Gemini sometimes explains itself instead of answering with one letter. In that case the scorer takes the last candidate letter that appears in its text. If the text has no candidate letter (for example because the answer was cut off), the question is left unscored.
+
+Our PR-pass results on 5,000 test questions:
+
+|                            | EM        | F1        |
+|----------------------------|-----------|-----------|
+| Text-only (location-blind) | 95.62     | 96.86     |
+| **Location-aware**         | - | - |
+
+Of the 5,000 test questions, 3,840 are down to a single candidate after Step 2 and are answered automatically. Gemini gave a usable answer for 1,158 of the other 1,160, so the remaining 2 (`53-1` and `12661-1`, whose answers were cut off before naming a candidate) are left out of the scores (they are listed under `unscored_qids` in the output file). The oracle recall of the candidate pool is 98.22% overall, and a random pick among the candidates of the 1,160 ambiguous questions would be right 44.25% of the time (`oracle_report.json`).
 
 ### 2. PSD: Phrase Sense Disambiguation
 
-PSD works the same way as PR, you only have to change the dataset and its config. `DATASET_CONFIG` is an empty string because PSD has just one version, and the pipeline scripts do not need `--config`.
+PSD works the same way as PR, you only change the dataset. PSD has just one version, so the config argument of `run_model.sh` is an empty string and the pipeline scripts do not need `--config`.
 
 ```
-# Step 1, inside retrieval_qa/
-export DATASET="phrase_sense_disambiguation"
-export DATASET_CONFIG=""
-export MODEL="Longformer-base"
-
-bash train_qa.sh finetune_model "${DATASET}" "${DATASET_CONFIG}" "${MODEL}"
-bash eval_qa.sh evaluate_model "${DATASET}" "${DATASET_CONFIG}" "${MODEL}"
+# Step 1, inside retrieval_qa/train/
+bash run_model.sh phrase_sense_disambiguation "" Longformer
+bash run_model.sh phrase_sense_disambiguation "" ELECTRA
+bash run_model.sh phrase_sense_disambiguation "" ROBERTA
 
 # Steps 2 to 4, inside pipeline/
 python 01_aggregate_candidates.py --task psd
 python 02_dedupe_clusters.py --task psd
 python 03_build_llm_batch.py --task psd
-# ...send psd_llm_batch.jsonl to Gemini and save its output next to it...
+# ...send psd_llm_batch.jsonl to Gemini and save its output next to it as gemini_predictions.jsonl...
 python 04_score_predictions.py --task psd
 ```
 
-- Put the three n-best files in `results/phrase_sense_disambiguation/qa/` with the same names as in the PR section.
+- The n-best files go to `results/phrase_sense_disambiguation/qa/` with the same names as in the PR section.
 - The final scores and predictions are stored in `results/phrase_sense_disambiguation/final_predictionspsd.json`.
 
-Our PSD results on the full test set:
+Our PSD results on 3,000 test questions:
 
-| | EM | F1 |
-|---|---|---|
-| Text-only (location-blind) | 95.50 | 96.34 |
-| **Location-aware** | **84.80** | **84.97** |
+|                            | EM        | F1        |
+|----------------------------|-----------|-----------|
+| Text-only (location-blind) | 95.56     | 96.41     |
+| **Location-aware**         | **84.80** | **84.97** |
 
-Of the 4,858 test questions, 291 are down to a single candidate after Step 2 and are answered automatically. Gemini gave a usable answer for 4,533 of the other 4,567, so the remaining 34 are left out of the scores (they are listed under `unscored_qids` in the output file). The PR results are in the paper.
+Of the 3,000 questions, 549 are down to a single candidate after Step 2 and are answered automatically. Gemini gave a usable answer for 2,449 of the other 2,451, so the remaining 2 (`12582-2` and `32-2`) are left out of the scores (they are listed under `unscored_qids` in the output file). The oracle recall of the candidate pool is 98.63%, and a random pick among the candidates of the 2,451 ambiguous questions would be right 44.83% of the time (`oracle_report.json`).
+
+## What is in `results/`
+
+```
+results/
+├── phrase_sense_disambiguation/
+│   ├── qa/
+│   │   ├── Longformerpredict_nbest_predictions.json   # Step 1 output (input of Step 2)
+│   │   ├── ELECTRApredict_nbest_predictions.json
+│   │   └── ROBERTApredict_nbest_predictions.json
+│   ├── gemini_predictions.jsonl     # Step 3 output, Gemini's answers (input of Step 4)
+│   ├── oracle_report.json           # Step 2 output, oracle recall and random baseline
+│   └── final_predictionspsd.json    # Step 4 output, scores and per-question predictions
+└── phrase_retrieval/
+    └── PR-pass/                     # same files as above, with final_predictionspr.json
+```
+
+Step 2 downloads the PiC test set from Hugging Face to read the gold answers, so it needs an internet connection the first time. Files that Steps 2 and 3 generate in the same folders (`aggregated_candidates.json`, `aggregated_candidates_deduped.json`, `*_llm_batch.jsonl`) are not committed, they are rebuilt in seconds by the scripts.
+
+To recompute the final scores from the files above, without a GPU or a Gemini account (use `--task pr --config PR-pass` for PR):
+
+```
+cd pipeline/
+python 01_aggregate_candidates.py --task psd
+python 02_dedupe_clusters.py --task psd
+python 04_score_predictions.py --task psd
+```
+
+The committed n-best and Gemini files are slimmed down with `pipeline/slim_for_release.py` (top 5 spans per question, answer text only). The scripts only read those parts, so the scores are identical.
 
 ## License
 
@@ -197,6 +224,10 @@ Distributed under the MIT License. The PiC dataset itself is distributed under [
 ## Contact
 
 Questions about the code are welcome, email Jannatul Naima at [jannatulnaima.cse.cu@gmail.com](mailto:jannatulnaima.cse.cu@gmail.com) or open a github issue. Thanks!
+
+## Acknowledgements
+
+`retrieval_qa/train/` is adapted from the Hugging Face question answering example (`run_qa.py`) and the PiC authors' changes to it for the PR and PSD tasks (location-aware EM/F1). Please also cite the PiC paper if you use it.
 
 ## References
 
