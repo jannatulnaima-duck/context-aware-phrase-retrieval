@@ -6,8 +6,8 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 MODELS=(
   #"Deehan1866/PR-pass-electra-large"
-  #"Deehan1866/longformer-base-4096"
-  "Deehan1866/PR-Pass-deberta-v3-base"
+  "Deehan1866/longformer-base-4096"
+  #"Deehan1866/PR-Pass-deberta-v3-base"
   #"Deehan1866/PR-pass-structbert-large"
   #"Deehan1866/PR-pass-xlnet-base-cased"
   #"Deehan1866/PR-pass-roberta-large"
@@ -27,8 +27,6 @@ for MODEL in "${MODELS[@]}"; do
 
   python run_qa.py \
     --model_name_or_path "${MODEL}" \
-    --do_train \
-    --do_eval \
     --do_predict \
     --dataset_name Deehan1866/phrase_sense_disambiguation \
     --dataset_config_name pass \
