@@ -49,11 +49,11 @@
 When a phrase appears several times in one document, a retrieval system has to find the right occurrence, not just the phrase. [Phrase-in-Context (PiC)](https://phrase-in-context.github.io/) tests this with its Phrase Retrieval (PR) and Phrase Sense Disambiguation (PSD) tasks. Extractive QA models keep only their single best span, and we found that three different QA models can agree with high confidence on the wrong occurrence.
 
 :star2: Official implementation of our paper *Context-Aware Phrase Retrieval Framework for Occurrence-Level Disambiguation*. Our framework has three stages:
-
+![Framework overview](images/Retrievalframework.svg)
 1. **Candidate generation.** We fine-tune ELECTRA, RoBERTa and Longformer as extractive QA models and keep the top 5 spans of each.
 2. **Location-aware candidate aggregation.** We pool the spans of all models, filter them, and merge overlapping spans into one candidate per occurrence.
 3. **LLM-based contextual reranking.** If more than one candidate is left, Gemini 3.5 Flash reads the document with each candidate marked as `[LOC-i]` and picks the one that matches the query. Questions with a single candidate never reach the LLM.
-![Framework overview](images/Retrievalframework.jpg)
+
 We report text-only EM/F1 for both tasks. For PSD we also report a location-aware EM/F1, where a prediction counts only if it is at the gold position.
 
 **If you use our code, please consider citing:**
